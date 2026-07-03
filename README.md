@@ -1,18 +1,45 @@
 # LED Ping-Pong Game on FPGA (VHDL)
 
-This repository contains the complete **Vivado project** (`.xpr`) and VHDL source files for a hardware-based LED Ping-Pong game implemented on an AMD/Xilinx FPGA development board.
-
-### 🎮 Game Dynamics & Rules
-The project implements a fast-paced electronic tennis game using the board's physical I/O:
-* **The "Ball" Movement:** The ball is represented by a shifting light across the onboard LEDs (`LED15` to `LED0`). 
-* **Controls:** Player 1 uses `btnL` to launch and hit the ball from `LED15`. Player 2 must precisely press `btnR` exactly when the light reaches `LED0` to reverse its direction.
-* **Miss Conditions:** If a player misses the timing window, all LEDs light up for 1 second as a visual penalty, the opponent scores a point, and a new round automatically resets.
-
-### ⚙️ Hardware Logic & Features
-The core system architecture relies on modular, synchronous VHDL blocks:
-* **Finite State Machine (FSM) with Deuce Logic:** Manages the game states (*Idle/Reset, Active Play, Miss Delay, and Game Over*). The winning condition is set to **11 points**, but it dynamically incorporates a **two-point advantage rule (Deuce)**. A player cannot win at 11-10; the hardware continuously checks that $Score_1 \ge 11$ or $Score_2 \ge 11$ alongside $|Score_1 - Score_2| \ge 2$.
-* **Clock Dividers & Debouncers:** Step down the high-frequency system clock to control the LED shifting speed and cleanly debounce the mechanical button inputs (`btnL` / `btnR`).
-* **Seven-Segment Display Driver:** Time-multiplexes the digital outputs to render both players' scores in real-time on the board's 7-segment display digits.
+This repository contains the complete **AMD Vivado project** and VHDL source files for a hardware-based LED Ping-Pong game implemented on an FPGA development board (e.g., Digilent Basys 3 or similar Xilinx-based boards).
 
 ---
-*Developed as part of the Digital Circuits curriculum at the Technical University of Cluj-Napoca.*
+
+### 🎮 Game Dynamics & Rules
+The project implements a fast-paced electronic tennis game using the board's physical I/O peripherals:
+* **The "Ball" Movement:** The ball is represented by a single active light shifting across the 16 onboard LEDs (`led(15)` down to `led(0)`).
+* **Controls:** 
+  * `btnL` controls the left paddle (active when the ball is at `pozitie = 15`).
+  * `btnR` controls the right paddle (active when the ball is at `pozitie = 0`).
+  * `btnC` acts as a global synchronous reset to restart the game and clear the scores.
+* **Serving:** When a point is scored, the ball resets to the respective side, and the corresponding LED blinks rapidly until the player serves by pressing their button.
+* **Win Condition (With Advantage):** The first player to reach **11 points** wins the match. However, a player must win by a margin of at least **2 points** (Deuce logic).
+
+---
+
+### ⚙️ Hardware Architecture & Implementation Details
+
+The core system architecture (`PingPongGame.vhd`) relies on synchronous, modular hardware blocks:
+
+#### 1. Finite State Machine (FSM)
+The core control unit is modeled using an explicit 5-state FSM (`stari_joc`):
+* `asteapta_l` / `asteapta_r`: Idle states awaiting a player serve.
+* `la_dreapta` / `la_stanga`: Active gameplay states where the ball position index shifts step-by-step.
+* `final_joc`: Match-over state reached when winning conditions are met. All 16 LEDs flash simultaneously in this state.
+
+#### 2. Clock Management & Signal Generation
+A main 26-bit synchronous counter (`numara_clk`) divides the onboard master clock (100 MHz):
+* `clk_joc <= numara_clk(22)` dictates the shifting speed of the ball.
+* `mux_cnt <= numara_clk(18 downto 17)` sets the optimal frequency for 7-segment display digit refreshing to avoid visual flickering.
+
+#### 3. Mathematical Advantage Logic
+The point-scoring mechanism evaluates score bounds on the fly. To secure a win, the VHDL process dynamically verifies that the leading player has scored at least 11 points and has achieved a 2-point lead:
+$$\text{puncte\_l} \ge 10 \quad \text{AND} \quad (\text{puncte\_l} + 1 - \text{puncte\_r} \ge 2)$$
+
+#### 4. Time-Multiplexed 7-Segment Display Driver
+The score for both players is rendered simultaneously on the 4-digit common-anode display:
+* **Left Digits:** Display tens and units of `puncte_l` using rapid multiplexing cycles (`00` and `01`).
+* **Right Digits:** Display tens and units of `puncte_r` using cycles (`10` and `11`).
+* An external structural component, `Dec_7seg`, is instantiated and mapped via ports to decode the integer digits into 7-bit segment configurations (`seg`).
+
+---
+*Developed as part of the Digital Circuits / Digital Systems Engineering curriculum at the Technical University of Cluj-Napoca (UTCN).*
