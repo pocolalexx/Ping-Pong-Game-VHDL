@@ -32,8 +32,9 @@ A main 26-bit synchronous counter (`numara_clk`) divides the onboard master cloc
 * `mux_cnt <= numara_clk(18 downto 17)` sets the optimal frequency for 7-segment display digit refreshing to avoid visual flickering.
 
 #### 3. Mathematical Advantage Logic
-The point-scoring mechanism evaluates score bounds on the fly. To secure a win, the VHDL process dynamically verifies that the leading player has scored at least 11 points and has achieved a 2-point lead:
-$$\text{puncte\_l} \ge 10 \quad \text{AND} \quad (\text{puncte\_l} + 1 - \text{puncte\_r} \ge 2)$$
+The point-scoring mechanism evaluates score bounds on the fly. To secure a win, the VHDL process dynamically verifies that the leading player has scored at least 11 points and has achieved a 2-point lead using the following conditional statement:
+
+`puncte_l >= 10 and (puncte_l + 1 - puncte_r >= 2)`
 
 #### 4. Time-Multiplexed 7-Segment Display Driver
 The score for both players is rendered simultaneously on the 4-digit common-anode display:
